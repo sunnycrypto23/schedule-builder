@@ -1,7 +1,6 @@
 // ========== CONFIGURATION ==========
 const SERVER_URL = 'https://schedule-builder-server.onrender.com';
 
-// Optional – fallback browser notification permission
 if ('Notification' in window && Notification.permission === 'default') {
   Notification.requestPermission();
 }
@@ -46,20 +45,31 @@ function migrateEntries() {
 }
 
 // ========== DATETIME HELPERS ==========
-// Converts an ISO string (UTC) into the local "YYYY-MM-DDTHH:MM" format
-// that <input type="datetime-local"> expects, so editing shows the
-// correct local time instead of raw UTC.
 function isoToLocalDatetimeInput(isoString) {
   const date = new Date(isoString);
   const pad = n => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-// ========== HELPER: GET ONESIGNAL PLAYER ID (WAITS FOR INIT) ==========
+function setDefaultReminderTime() {
+  const now = new Date();
+  now.setHours(now.getHours() + 1);
+  const pad = n => String(n).padStart(2, '0');
+  reminderDatetimeInput.value = 
+    `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+// ========== HELPER: GET ONESIGNAL PLAYER ID ==========
 function getOneSignalPlayerId() {
   return new Promise((resolve, reject) => {
     function tryGetId() {
-      const id = OneSignal.User.PushSubscription.id;
+      let id = null;
+      if (OneSignal.User && OneSignal.User.PushSubscription) {
+        id = OneSignal.User.PushSubscription.id;
+      }
+      if (!id && OneSignal.User && typeof OneSignal.User.getOnesignalId === 'function') {
+        return OneSignal.User.getOnesignalId().then(resolve).catch(reject);
+      }
       if (id) {
         resolve(id);
       } else {
@@ -81,7 +91,8 @@ function getOneSignalPlayerId() {
     }
   });
 }
-// ========== REMINDER FUNCTIONS (SERVER) ==========
+
+// ========== REMINDER FUNCTIONS ==========
 async function scheduleReminder(entry) {
   if (!entry.reminderTime) {
     console.warn('No reminderTime set for entry', entry.id);
@@ -112,7 +123,7 @@ async function scheduleReminder(entry) {
     });
 
     const data = await response.json();
-    if (data.success) {
+    if (response.ok && data.success) {
       entry.reminderServerId = data.id;
       const entries = loadEntries();
       const idx = entries.findIndex(e => e.id === entry.id);
@@ -122,7 +133,7 @@ async function scheduleReminder(entry) {
       }
       console.log(`📅 Reminder scheduled with server ID: ${data.id} for entry ${entry.id}`);
     } else {
-      console.error('Failed to schedule reminder:', data.error);
+      console.error('Failed to schedule reminder:', response.status, data);
     }
   } catch (error) {
     console.error('Error scheduling reminder:', error);
@@ -172,6 +183,7 @@ function startEdit(entry) {
   document.getElementById('entry-venue').value = entry.venue || '';
   dayField.style.display = entry.type === 'class' ? 'flex' : 'none';
 
+  // Handle reminder fields
   const hasReminder = !!entry.reminderTime;
   enableReminderCheckbox.checked = hasReminder;
   if (hasReminder) {
@@ -281,12 +293,17 @@ form.addEventListener('submit', function (e) {
 
   // ---- Manual reminder handling ----
   let reminderTimeISO = null;
-  if (enableReminderCheckbox.checked && reminderDatetimeInput.value) {
+  if (enableReminderCheckbox.checked) {
+    if (!reminderDatetimeInput.value) {
+      alert('Please select a reminder time or uncheck "Set Reminder".');
+      return;
+    }
     const reminderDate = new Date(reminderDatetimeInput.value);
     if (reminderDate > new Date()) {
       reminderTimeISO = reminderDate.toISOString();
     } else {
-      alert('Reminder time must be in the future — entry saved without a reminder.');
+      alert('Reminder time must be in the future.');
+      return;
     }
   }
   entryData.reminderTime = reminderTimeISO;
@@ -316,6 +333,8 @@ form.addEventListener('submit', function (e) {
   form.reset();
   dayField.style.display = 'flex';
   reminderDatetimeField.style.display = 'flex';
+  enableReminderCheckbox.checked = true;
+  setDefaultReminderTime();
 });
 
 // ========== TOGGLE FIELDS ==========
@@ -325,8 +344,12 @@ typeSelect.addEventListener('change', function () {
 
 enableReminderCheckbox.addEventListener('change', function () {
   reminderDatetimeField.style.display = this.checked ? 'flex' : 'none';
+  if (this.checked) {
+    setDefaultReminderTime();
+  }
 });
 
 // ========== INIT ==========
 migrateEntries();
 renderEntries();
+setDefaultReminderTime();
