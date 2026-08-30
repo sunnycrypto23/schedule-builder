@@ -191,6 +191,19 @@ form.addEventListener('submit', function (e) {
   }
 
   saveEntries(entries);
+function migrateEntries() {
+  const entries = loadEntries();
+  let changed = false;
+  entries.forEach(function (entry) {
+    if (!entry.id) {
+      entry.id = Date.now().toString() + Math.random().toString(36).substring(2, 6);
+      changed = true;
+    }
+  });
+  if (changed) saveEntries(entries);
+}
+
+migrateEntries();
   scheduleReminder(entryData);
   renderEntries();
 
