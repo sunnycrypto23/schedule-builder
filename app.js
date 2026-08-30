@@ -45,6 +45,7 @@ function clearReminder(id) {
     delete reminderTimers[id];
   }
 }
+
 const form = document.getElementById('entry-form');
 const typeSelect = document.getElementById('entry-type');
 const dayField = document.getElementById('day-field');
@@ -65,6 +66,18 @@ function loadEntries() {
 
 function saveEntries(entries) {
   localStorage.setItem('scheduleEntries', JSON.stringify(entries));
+}
+
+function migrateEntries() {
+  const entries = loadEntries();
+  let changed = false;
+  entries.forEach(function (entry) {
+    if (!entry.id) {
+      entry.id = Date.now().toString() + Math.random().toString(36).substring(2, 6);
+      changed = true;
+    }
+  });
+  if (changed) saveEntries(entries);
 }
 
 const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -191,19 +204,6 @@ form.addEventListener('submit', function (e) {
   }
 
   saveEntries(entries);
-function migrateEntries() {
-  const entries = loadEntries();
-  let changed = false;
-  entries.forEach(function (entry) {
-    if (!entry.id) {
-      entry.id = Date.now().toString() + Math.random().toString(36).substring(2, 6);
-      changed = true;
-    }
-  });
-  if (changed) saveEntries(entries);
-}
-
-migrateEntries();
   scheduleReminder(entryData);
   renderEntries();
 
@@ -211,4 +211,5 @@ migrateEntries();
   dayField.style.display = 'flex';
 });
 
+migrateEntries();
 renderEntries();
