@@ -1,9 +1,9 @@
 const form = document.getElementById('entry-form');
 const typeSelect = document.getElementById('entry-type');
 const dayField = document.getElementById('day-field');
-const list = document.getElementById('entry-list');
+const classList = document.getElementById('class-list');
+const taskList = document.getElementById('task-list');
 
-// Show/hide the "Day" field depending on entry type
 typeSelect.addEventListener('change', function () {
   dayField.style.display = typeSelect.value === 'class' ? 'flex' : 'none';
 });
@@ -19,9 +19,17 @@ function saveEntries(entries) {
 
 const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+function deleteEntry(entries, entry) {
+  const realIndex = entries.indexOf(entry);
+  entries.splice(realIndex, 1);
+  saveEntries(entries);
+  renderEntries();
+}
+
 function renderEntries() {
   const entries = loadEntries();
-  list.innerHTML = '';
+  classList.innerHTML = '';
+  taskList.innerHTML = '';
 
   const classes = entries.filter(e => e.type === 'class');
   const tasks = entries.filter(e => e.type === 'task');
@@ -36,35 +44,47 @@ function renderEntries() {
     return a.time.localeCompare(b.time);
   });
 
-  const sorted = classes.concat(tasks);
-
-  sorted.forEach(function (entry) {
-    const realIndex = entries.indexOf(entry);
-    const li = document.createElement('li');
-    li.className = 'entry-item ' + entry.type;
-
-    const details = document.createElement('div');
-    details.className = 'entry-details';
-
-    const meta = entry.type === 'class'
-      ? entry.day + ' · ' + entry.time + (entry.venue ? ' · ' + entry.venue : '')
-      : 'Study Task · ' + entry.time;
-
-    details.innerHTML = '<strong>' + entry.title + '</strong>' +
-      '<span class="entry-meta">' + meta + '</span>';
+  // Render classes as table rows
+  classes.forEach(function (entry) {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + entry.title + '</td>' +
+      '<td>' + entry.day + '</td>' +
+      '<td>' + entry.time + '</td>' +
+      '<td>' + (entry.venue || '—') + '</td>' +
+      '<td></td>';
 
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'delete-btn';
     deleteBtn.innerHTML = '✕';
     deleteBtn.addEventListener('click', function () {
-      entries.splice(realIndex, 1);
-      saveEntries(entries);
-      renderEntries();
+      deleteEntry(entries, entry);
+    });
+
+    tr.lastElementChild.appendChild(deleteBtn);
+    classList.appendChild(tr);
+  });
+
+  // Render tasks as a list
+  tasks.forEach(function (entry) {
+    const li = document.createElement('li');
+    li.className = 'entry-item task';
+
+    const details = document.createElement('div');
+    details.className = 'entry-details';
+    details.innerHTML = '<strong>' + entry.title + '</strong>' +
+      '<span class="entry-meta">' + entry.time + '</span>';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'delete-btn';
+    deleteBtn.innerHTML = '✕';
+    deleteBtn.addEventListener('click', function () {
+      deleteEntry(entries, entry);
     });
 
     li.appendChild(details);
     li.appendChild(deleteBtn);
-    list.appendChild(li);
+    taskList.appendChild(li);
   });
 }
 
