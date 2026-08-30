@@ -1,7 +1,7 @@
 // ========== CONFIGURATION ==========
 const SERVER_URL = 'https://schedule-builder-server.onrender.com';
 
-// Optional – fallback browser notification permission (still useful)
+// Optional – fallback browser notification permission
 if ('Notification' in window && Notification.permission === 'default') {
   Notification.requestPermission();
 }
@@ -16,7 +16,7 @@ const submitBtn = form.querySelector('button[type="submit"]');
 
 let editingId = null;
 
-// ========== DAY ORDER (for sorting) ==========
+// ========== DAY ORDER ==========
 const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 // ========== LOCAL STORAGE HELPERS ==========
@@ -29,7 +29,7 @@ function saveEntries(entries) {
   localStorage.setItem('scheduleEntries', JSON.stringify(entries));
 }
 
-// ========== MIGRATION (backfill ids) ==========
+// ========== MIGRATION ==========
 function migrateEntries() {
   const entries = loadEntries();
   let changed = false;
@@ -50,25 +50,47 @@ function computeReminderTime(entry) {
   target.setHours(hours, minutes, 0, 0);
 
   if (entry.type === 'class') {
-    const todayIndex = now.getDay(); // 0=Sunday
+    const todayIndex = now.getDay();
     const dayMap = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const targetIndex = dayMap.indexOf(entry.day);
     let daysUntil = (targetIndex - todayIndex + 7) % 7;
     if (daysUntil === 0 && target < now) daysUntil = 7;
     target.setDate(now.getDate() + daysUntil);
   } else {
-    // For tasks: if the time is already past today, skip
     if (target < now) return null;
   }
 
-  // Schedule 10 minutes before the event
   const reminderTime = new Date(target.getTime() - 10 * 60 * 1000);
   return reminderTime.toISOString();
 }
 
-// ========== REMINDER FUNCTIONS (SERVER) – CORRECTED ==========
+// ========== HELPER: GET ONESIGNAL PLAYER ID (WAITS FOR INIT) ==========
+function getOneSignalPlayerId() {
+  return new Promise((resolve, reject) => {
+    // If already initialised, get it directly
+    if (typeof OneSignal !== 'undefined' && OneSignal.initialized) {
+      OneSignal.User.getOnesignalId().then(resolve).catch(reject);
+      return;
+    }
+
+    // Otherwise, push a function into OneSignalDeferred to run after init
+    if (window.OneSignalDeferred) {
+      window.OneSignalDeferred.push(async function() {
+        try {
+          const id = await OneSignal.User.getOnesignalId();
+          resolve(id);
+        } catch (e) {
+          reject(e);
+        }
+      });
+    } else {
+      reject(new Error('OneSignal SDK not loaded'));
+    }
+  });
+}
+
+// ========== REMINDER FUNCTIONS (SERVER) ==========
 async function scheduleReminder(entry) {
-  // If there's no reminderTime or it's in the past, skip
   if (!entry.reminderTime) {
     console.warn('No reminderTime set for entry', entry.id);
     return;
@@ -80,12 +102,8 @@ async function scheduleReminder(entry) {
   }
 
   try {
-    // ✅ Check if OneSignal SDK is loaded and use correct spelling (capital S)
-    if (typeof OneSignal === 'undefined') {
-      console.warn('OneSignal SDK not loaded – cannot get player ID');
-      return;
-    }
-    const playerId = await OneSignal.User.getOnesignalId();
+    // Wait for OneSignal to be ready and get player ID
+    const playerId = await getOneSignalPlayerId();
     if (!playerId) {
       console.warn('No OneSignal player ID – user may not have granted permission');
       return;
@@ -105,7 +123,6 @@ async function scheduleReminder(entry) {
     const data = await response.json();
     if (data.success) {
       entry.reminderServerId = data.id;
-      // Save the updated entry with the server ID
       const entries = loadEntries();
       const idx = entries.findIndex(e => e.id === entry.id);
       if (idx !== -1) {
@@ -132,7 +149,6 @@ async function clearReminder(entry) {
     });
     console.log(`🗑️ Reminder ${entry.reminderServerId} cancelled for entry ${entry.id}`);
     delete entry.reminderServerId;
-    // Update the stored entry
     const entries = loadEntries();
     const idx = entries.findIndex(e => e.id === entry.id);
     if (idx !== -1) {
@@ -144,12 +160,12 @@ async function clearReminder(entry) {
   }
 }
 
-// ========== CRUD OPERATIONS ==========
+// ========== CRUD ==========
 function deleteEntry(id) {
   const entries = loadEntries();
   const entry = entries.find(e => e.id === id);
   if (entry) {
-    clearReminder(entry); // cancel server reminder
+    clearReminder(entry);
     const updated = entries.filter(e => e.id !== id);
     saveEntries(updated);
   }
@@ -253,7 +269,6 @@ form.addEventListener('submit', function (e) {
 
   const entries = loadEntries();
 
-  // Build entry object from form
   const entryData = {
     type: typeSelect.value,
     title: document.getElementById('entry-title').value,
@@ -262,22 +277,14 @@ form.addEventListener('submit', function (e) {
     venue: document.getElementById('entry-venue').value
   };
 
-  // Compute reminder time (10 min before)
   const reminderTimeISO = computeReminderTime(entryData);
-  if (reminderTimeISO) {
-    entryData.reminderTime = reminderTimeISO;
-  } else {
-    // If no valid reminder time (e.g., task time already passed), we won't schedule
-    entryData.reminderTime = null;
-  }
+  entryData.reminderTime = reminderTimeISO || null;
 
   if (editingId) {
-    // Find old entry to clear its reminder
     const oldEntry = entries.find(e => e.id === editingId);
     if (oldEntry) {
       clearReminder(oldEntry);
     }
-    // Update
     entryData.id = editingId;
     const index = entries.findIndex(e => e.id === editingId);
     entries[index] = entryData;
@@ -290,7 +297,6 @@ form.addEventListener('submit', function (e) {
 
   saveEntries(entries);
 
-  // Schedule reminder only if we have a valid reminderTime
   if (entryData.reminderTime) {
     scheduleReminder(entryData);
   }
