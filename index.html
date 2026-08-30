@@ -7,6 +7,16 @@
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
   <meta name="theme-color" content="#2f6f63">
+
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(function(OneSignal) {
+      OneSignal.init({
+        appId: "4659518e-65b6-4c00-bc9f-bdb1b6da51c1",
+      });
+    });
+  </script>
 </head>
 <body>
   <header>
@@ -59,23 +69,23 @@
     </section>
 
     <section id="list-section">
-  <h2>Class Timetable</h2>
-  <table id="class-table">
-    <thead>
-      <tr>
-        <th>Course</th>
-        <th>Day</th>
-        <th>Time</th>
-        <th>Venue</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody id="class-list"></tbody>
-  </table>
+      <h2>Class Timetable</h2>
+      <table id="class-table">
+        <thead>
+          <tr>
+            <th>Course</th>
+            <th>Day</th>
+            <th>Time</th>
+            <th>Venue</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="class-list"></tbody>
+      </table>
 
-  <h2>Study Tasks</h2>
-  <ul id="task-list"></ul>
-</section>
+      <h2>Study Tasks</h2>
+      <ul id="task-list"></ul>
+    </section>
   </main>
 
   <script src="app.js"></script>
