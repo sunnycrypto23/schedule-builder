@@ -117,3 +117,6 @@ th {
 td .delete-btn {
   padding: 0;
 }
+.entry-item {
+  align-items: flex-start;
+}
