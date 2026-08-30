@@ -17,11 +17,29 @@ function saveEntries(entries) {
   localStorage.setItem('scheduleEntries', JSON.stringify(entries));
 }
 
+const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
 function renderEntries() {
   const entries = loadEntries();
   list.innerHTML = '';
 
-  entries.forEach(function (entry, index) {
+  const classes = entries.filter(e => e.type === 'class');
+  const tasks = entries.filter(e => e.type === 'task');
+
+  classes.sort(function (a, b) {
+    const dayDiff = dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day);
+    if (dayDiff !== 0) return dayDiff;
+    return a.time.localeCompare(b.time);
+  });
+
+  tasks.sort(function (a, b) {
+    return a.time.localeCompare(b.time);
+  });
+
+  const sorted = classes.concat(tasks);
+
+  sorted.forEach(function (entry) {
+    const realIndex = entries.indexOf(entry);
     const li = document.createElement('li');
     li.className = 'entry-item ' + entry.type;
 
@@ -39,7 +57,7 @@ function renderEntries() {
     deleteBtn.className = 'delete-btn';
     deleteBtn.innerHTML = '✕';
     deleteBtn.addEventListener('click', function () {
-      entries.splice(index, 1);
+      entries.splice(realIndex, 1);
       saveEntries(entries);
       renderEntries();
     });
