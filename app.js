@@ -58,26 +58,29 @@ function isoToLocalDatetimeInput(isoString) {
 // ========== HELPER: GET ONESIGNAL PLAYER ID (WAITS FOR INIT) ==========
 function getOneSignalPlayerId() {
   return new Promise((resolve, reject) => {
+    function tryGetId() {
+      const id = OneSignal.User.PushSubscription.id;
+      if (id) {
+        resolve(id);
+      } else {
+        reject(new Error('No push subscription ID available — permission may not be granted yet'));
+      }
+    }
+
     if (typeof OneSignal !== 'undefined' && OneSignal.initialized) {
-      OneSignal.User.getOnesignalId().then(resolve).catch(reject);
+      tryGetId();
       return;
     }
 
     if (window.OneSignalDeferred) {
-      window.OneSignalDeferred.push(async function() {
-        try {
-          const id = await OneSignal.User.getOnesignalId();
-          resolve(id);
-        } catch (e) {
-          reject(e);
-        }
+      window.OneSignalDeferred.push(function () {
+        tryGetId();
       });
     } else {
       reject(new Error('OneSignal SDK not loaded'));
     }
   });
 }
-
 // ========== REMINDER FUNCTIONS (SERVER) ==========
 async function scheduleReminder(entry) {
   if (!entry.reminderTime) {
