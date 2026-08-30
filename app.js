@@ -13,6 +13,9 @@ const dayField = document.getElementById('day-field');
 const classList = document.getElementById('class-list');
 const taskList = document.getElementById('task-list');
 const submitBtn = form.querySelector('button[type="submit"]');
+const enableReminderCheckbox = document.getElementById('enable-reminder');
+const reminderDatetimeField = document.getElementById('reminder-datetime-field');
+const reminderDatetimeInput = document.getElementById('reminder-datetime');
 
 let editingId = null;
 
@@ -42,38 +45,24 @@ function migrateEntries() {
   if (changed) saveEntries(entries);
 }
 
-// ========== COMPUTE REMINDER TIME ==========
-function computeReminderTime(entry) {
-  const now = new Date();
-  let target = new Date();
-  const [hours, minutes] = entry.time.split(':').map(Number);
-  target.setHours(hours, minutes, 0, 0);
-
-  if (entry.type === 'class') {
-    const todayIndex = now.getDay();
-    const dayMap = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const targetIndex = dayMap.indexOf(entry.day);
-    let daysUntil = (targetIndex - todayIndex + 7) % 7;
-    if (daysUntil === 0 && target < now) daysUntil = 7;
-    target.setDate(now.getDate() + daysUntil);
-  } else {
-    if (target < now) return null;
-  }
-
-  const reminderTime = new Date(target.getTime() - 10 * 60 * 1000);
-  return reminderTime.toISOString();
+// ========== DATETIME HELPERS ==========
+// Converts an ISO string (UTC) into the local "YYYY-MM-DDTHH:MM" format
+// that <input type="datetime-local"> expects, so editing shows the
+// correct local time instead of raw UTC.
+function isoToLocalDatetimeInput(isoString) {
+  const date = new Date(isoString);
+  const pad = n => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 // ========== HELPER: GET ONESIGNAL PLAYER ID (WAITS FOR INIT) ==========
 function getOneSignalPlayerId() {
   return new Promise((resolve, reject) => {
-    // If already initialised, get it directly
     if (typeof OneSignal !== 'undefined' && OneSignal.initialized) {
       OneSignal.User.getOnesignalId().then(resolve).catch(reject);
       return;
     }
 
-    // Otherwise, push a function into OneSignalDeferred to run after init
     if (window.OneSignalDeferred) {
       window.OneSignalDeferred.push(async function() {
         try {
@@ -102,7 +91,6 @@ async function scheduleReminder(entry) {
   }
 
   try {
-    // Wait for OneSignal to be ready and get player ID
     const playerId = await getOneSignalPlayerId();
     if (!playerId) {
       console.warn('No OneSignal player ID – user may not have granted permission');
@@ -180,6 +168,17 @@ function startEdit(entry) {
   document.getElementById('entry-time').value = entry.time;
   document.getElementById('entry-venue').value = entry.venue || '';
   dayField.style.display = entry.type === 'class' ? 'flex' : 'none';
+
+  const hasReminder = !!entry.reminderTime;
+  enableReminderCheckbox.checked = hasReminder;
+  if (hasReminder) {
+    reminderDatetimeInput.value = isoToLocalDatetimeInput(entry.reminderTime);
+    reminderDatetimeField.style.display = 'flex';
+  } else {
+    reminderDatetimeInput.value = '';
+    reminderDatetimeField.style.display = 'none';
+  }
+
   submitBtn.textContent = 'Save Changes';
   window.scrollTo(0, 0);
 }
@@ -277,8 +276,17 @@ form.addEventListener('submit', function (e) {
     venue: document.getElementById('entry-venue').value
   };
 
-  const reminderTimeISO = computeReminderTime(entryData);
-  entryData.reminderTime = reminderTimeISO || null;
+  // ---- Manual reminder handling ----
+  let reminderTimeISO = null;
+  if (enableReminderCheckbox.checked && reminderDatetimeInput.value) {
+    const reminderDate = new Date(reminderDatetimeInput.value);
+    if (reminderDate > new Date()) {
+      reminderTimeISO = reminderDate.toISOString();
+    } else {
+      alert('Reminder time must be in the future — entry saved without a reminder.');
+    }
+  }
+  entryData.reminderTime = reminderTimeISO;
 
   if (editingId) {
     const oldEntry = entries.find(e => e.id === editingId);
@@ -304,11 +312,16 @@ form.addEventListener('submit', function (e) {
   renderEntries();
   form.reset();
   dayField.style.display = 'flex';
+  reminderDatetimeField.style.display = 'flex';
 });
 
-// ========== TOGGLE DAY FIELD ==========
+// ========== TOGGLE FIELDS ==========
 typeSelect.addEventListener('change', function () {
   dayField.style.display = typeSelect.value === 'class' ? 'flex' : 'none';
+});
+
+enableReminderCheckbox.addEventListener('change', function () {
+  reminderDatetimeField.style.display = this.checked ? 'flex' : 'none';
 });
 
 // ========== INIT ==========
