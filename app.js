@@ -3,6 +3,9 @@ const typeSelect = document.getElementById('entry-type');
 const dayField = document.getElementById('day-field');
 const classList = document.getElementById('class-list');
 const taskList = document.getElementById('task-list');
+const submitBtn = form.querySelector('button[type="submit"]');
+
+let editingId = null;
 
 typeSelect.addEventListener('change', function () {
   dayField.style.display = typeSelect.value === 'class' ? 'flex' : 'none';
@@ -19,11 +22,23 @@ function saveEntries(entries) {
 
 const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-function deleteEntry(entries, entry) {
-  const realIndex = entries.indexOf(entry);
-  entries.splice(realIndex, 1);
+function deleteEntry(id) {
+  const entries = loadEntries().filter(e => e.id !== id);
   saveEntries(entries);
+  clearReminder(id);
   renderEntries();
+}
+
+function startEdit(entry) {
+  editingId = entry.id;
+  typeSelect.value = entry.type;
+  document.getElementById('entry-title').value = entry.title;
+  document.getElementById('entry-day').value = entry.day || 'Monday';
+  document.getElementById('entry-time').value = entry.time;
+  document.getElementById('entry-venue').value = entry.venue || '';
+  dayField.style.display = entry.type === 'class' ? 'flex' : 'none';
+  submitBtn.textContent = 'Save Changes';
+  window.scrollTo(0, 0);
 }
 
 function renderEntries() {
@@ -44,7 +59,6 @@ function renderEntries() {
     return a.time.localeCompare(b.time);
   });
 
-  // Render classes as table rows
   classes.forEach(function (entry) {
     const tr = document.createElement('tr');
     tr.innerHTML =
@@ -54,18 +68,26 @@ function renderEntries() {
       '<td>' + (entry.venue || '—') + '</td>' +
       '<td></td>';
 
+    const actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.gap = '6px';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'delete-btn';
+    editBtn.innerHTML = '✎';
+    editBtn.addEventListener('click', function () { startEdit(entry); });
+
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'delete-btn';
     deleteBtn.innerHTML = '✕';
-    deleteBtn.addEventListener('click', function () {
-      deleteEntry(entries, entry);
-    });
+    deleteBtn.addEventListener('click', function () { deleteEntry(entry.id); });
 
-    tr.lastElementChild.appendChild(deleteBtn);
+    actions.appendChild(editBtn);
+    actions.appendChild(deleteBtn);
+    tr.lastElementChild.appendChild(actions);
     classList.appendChild(tr);
   });
 
-  // Render tasks as a list
   tasks.forEach(function (entry) {
     const li = document.createElement('li');
     li.className = 'entry-item task';
@@ -75,15 +97,24 @@ function renderEntries() {
     details.innerHTML = '<strong>' + entry.title + '</strong>' +
       '<span class="entry-meta">' + entry.time + '</span>';
 
+    const actions = document.createElement('div');
+    actions.style.display = 'flex';
+    actions.style.gap = '6px';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'delete-btn';
+    editBtn.innerHTML = '✎';
+    editBtn.addEventListener('click', function () { startEdit(entry); });
+
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'delete-btn';
     deleteBtn.innerHTML = '✕';
-    deleteBtn.addEventListener('click', function () {
-      deleteEntry(entries, entry);
-    });
+    deleteBtn.addEventListener('click', function () { deleteEntry(entry.id); });
 
+    actions.appendChild(editBtn);
+    actions.appendChild(deleteBtn);
     li.appendChild(details);
-    li.appendChild(deleteBtn);
+    li.appendChild(actions);
     taskList.appendChild(li);
   });
 }
@@ -91,7 +122,9 @@ function renderEntries() {
 form.addEventListener('submit', function (e) {
   e.preventDefault();
 
-  const entry = {
+  const entries = loadEntries();
+
+  const entryData = {
     type: typeSelect.value,
     title: document.getElementById('entry-title').value,
     day: document.getElementById('entry-day').value,
@@ -99,9 +132,19 @@ form.addEventListener('submit', function (e) {
     venue: document.getElementById('entry-venue').value
   };
 
-  const entries = loadEntries();
-  entries.push(entry);
+  if (editingId) {
+    const index = entries.findIndex(e => e.id === editingId);
+    entryData.id = editingId;
+    entries[index] = entryData;
+    editingId = null;
+    submitBtn.textContent = 'Add';
+  } else {
+    entryData.id = Date.now().toString();
+    entries.push(entryData);
+  }
+
   saveEntries(entries);
+  scheduleReminder(entryData);
   renderEntries();
 
   form.reset();
