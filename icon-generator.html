@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Icon Generator</title>
+</head>
+<body style="font-family: sans-serif; text-align: center; padding: 40px;">
+  <h2>Tap each button to download</h2>
+
+  <canvas id="canvas192" width="192" height="192" style="display:none;"></canvas>
+  <canvas id="canvas512" width="512" height="512" style="display:none;"></canvas>
+
+  <br>
+  <button onclick="downloadIcon(192)" style="padding:12px 20px; margin:10px; font-size:16px;">Download icon-192.png</button>
+  <br>
+  <button onclick="downloadIcon(512)" style="padding:12px 20px; margin:10px; font-size:16px;">Download icon-512.png</button>
+
+  <script>
+    function drawIcon(size) {
+      var canvas = document.getElementById('canvas' + size);
+      var ctx = canvas.getContext('2d');
+
+      // Teal background
+      ctx.fillStyle = '#2f6f63';
+      ctx.fillRect(0, 0, size, size);
+
+      // White "S" letter, centered
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold ' + (size * 0.55) + 'px Georgia, serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('S', size / 2, size / 2 + size * 0.05);
+    }
+
+    function downloadIcon(size) {
+      drawIcon(size);
+      var canvas = document.getElementById('canvas' + size);
+      var link = document.createElement('a');
+      link.download = 'icon-' + size + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+  </script>
+</body>
+</html>
