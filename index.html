@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schedule Builder</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <meta name="theme-color" content="#2f6f63">
+</head>
+<body>
+  <header>
+    <h1>Schedule Builder</h1>
+    <p>Your classes and study tasks, in one place.</p>
+  </header>
+
+  <main>
+    <section id="add-section">
+      <h2>Add Entry</h2>
+      <form id="entry-form">
+        <label>
+          Type
+          <select id="entry-type">
+            <option value="class">Class</option>
+            <option value="task">Study Task</option>
+          </select>
+        </label>
+
+        <label>
+          Title
+          <input type="text" id="entry-title" placeholder="e.g. MTH102 or Read Chapter 3" required>
+        </label>
+
+        <label id="day-field">
+          Day
+          <select id="entry-day">
+            <option>Monday</option>
+            <option>Tuesday</option>
+            <option>Wednesday</option>
+            <option>Thursday</option>
+            <option>Friday</option>
+            <option>Saturday</option>
+            <option>Sunday</option>
+          </select>
+        </label>
+
+        <label>
+          Time
+          <input type="time" id="entry-time" required>
+        </label>
+
+        <label id="venue-field">
+          Venue (optional)
+          <input type="text" id="entry-venue" placeholder="e.g. LT2">
+        </label>
+
+        <button type="submit">Add</button>
+      </form>
+    </section>
+
+    <section id="list-section">
+      <h2>Your Schedule</h2>
+      <ul id="entry-list"></ul>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
