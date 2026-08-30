@@ -94,3 +94,26 @@ button {
   cursor: pointer;
   padding: 0 6px;
 }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+}
+
+th, td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid #cfc9b4;
+  font-size: 0.9rem;
+}
+
+th {
+  color: #1f4b42;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+td .delete-btn {
+  padding: 0;
+}
