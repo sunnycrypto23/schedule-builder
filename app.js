@@ -1,3 +1,50 @@
+if ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+
+const reminderTimers = {};
+
+function scheduleReminder(entry) {
+  clearReminder(entry.id);
+
+  if (Notification.permission !== 'granted') return;
+
+  const now = new Date();
+  let target = new Date();
+  const [hours, minutes] = entry.time.split(':');
+  target.setHours(hours, minutes, 0, 0);
+
+  if (entry.type === 'class') {
+    const todayIndex = now.getDay();
+    const targetIndex = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].indexOf(entry.day);
+    let daysUntil = (targetIndex - todayIndex + 7) % 7;
+    if (daysUntil === 0 && target < now) daysUntil = 7;
+    target.setDate(now.getDate() + daysUntil);
+  } else {
+    if (target < now) return;
+  }
+
+  const reminderTime = target.getTime() - (10 * 60 * 1000);
+  const delay = reminderTime - now.getTime();
+
+  if (delay > 0) {
+    reminderTimers[entry.id] = setTimeout(function () {
+      new Notification('Upcoming: ' + entry.title, {
+        body: entry.type === 'class'
+          ? entry.day + ' at ' + entry.time + (entry.venue ? ' · ' + entry.venue : '')
+          : 'Due at ' + entry.time,
+        icon: 'icon-192.png'
+      });
+    }, delay);
+  }
+}
+
+function clearReminder(id) {
+  if (reminderTimers[id]) {
+    clearTimeout(reminderTimers[id]);
+    delete reminderTimers[id];
+  }
+}
 const form = document.getElementById('entry-form');
 const typeSelect = document.getElementById('entry-type');
 const dayField = document.getElementById('day-field');
